@@ -1,8 +1,8 @@
 fastapi==0.95.1
 uvicorn[standard]==0.22.0
-streamlit==1.22.0
 firebase-admin==6.1.0
-streamlit-javascript==0.1.5
-websocket-client==1.5.1
 pyrebase4==4.7.1
 setuptools==70.3.0
+flask==3.0.3
+flask-socketio==5.3.6
+python-socketio==5.11.2
