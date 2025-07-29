@@ -1,5 +1,5 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.middleware.cors import CORS
+from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import json
@@ -8,9 +8,10 @@ import asyncio
 # Initialize FastAPI
 app = FastAPI()
 
+#http://localhost:8501
 # Enable CORS for Streamlit frontend (running on different port)
 app.add_middleware(
-    CORS,
+    CORSMiddleware,
     allow_origins=["http://localhost:8501"],  # Streamlit default port
     allow_credentials=True,
     allow_methods=["*"],

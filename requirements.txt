@@ -1,0 +1,6 @@
+fastapi==0.95.1
+uvicorn==0.22.0
+streamlit==1.22.0
+firebase-admin==6.1.0
+streamlit-javascript==0.1.5
+websocket-client==1.5.1
