@@ -16,14 +16,14 @@ firebase_config = {
     "storageBucket": "chat-app-a765a.firebasestorage.app",
     "messagingSenderId": "962580258120",
     "appId": "1:962580258120:web:3fc77bbf9efc3b307b677d",
-    "databaseURL": ""  # Not needed for Authentication/Firestore
+    "databaseURL": ""
 }
 
 # Initialize Firebase
 firebase = pyrebase.initialize_app(firebase_config)
 auth = firebase.auth()
 
-# Session state for user, token, and WebSocket
+# Session state
 if "user" not in st.session_state:
     st.session_state.user = None
     st.session_state.token = None
@@ -67,21 +67,30 @@ def connect_websocket(token):
             while st.session_state.ws_connected:
                 try:
                     ws.send(json.dumps({"ping": "keep-alive"}))
-                    time.sleep(30)  # Ping every 30 seconds
+                    time.sleep(10)  # Reduced to 10 seconds
                 except:
                     st.session_state.ws_connected = False
                     break
         threading.Thread(target=keep_alive, daemon=True).start()
 
-    ws = websocket.WebSocketApp(
-        "ws://localhost:8000/ws",
-        on_message=on_message,
-        on_error=on_error,
-        on_close=on_close,
-        on_open=on_open
-    )
-    threading.Thread(target=ws.run_forever, daemon=True, kwargs={"ping_interval": 30}).start()
-    return ws
+    for attempt in range(3):  # Retry up to 3 times
+        try:
+            ws = websocket.WebSocketApp(
+                "ws://localhost:8000/ws",
+                on_message=on_message,
+                on_error=on_error,
+                on_close=on_close,
+                on_open=on_open
+            )
+            threading.Thread(target=ws.run_forever, daemon=True, kwargs={"ping_interval": 10, "ping_timeout": 5}).start()
+            time.sleep(1)  # Wait for connection
+            if st.session_state.ws_connected:
+                return ws
+            st.warning(f"WebSocket connection attempt {attempt + 1} failed. Retrying...")
+        except Exception as e:
+            st.error(f"WebSocket connection error: {str(e)}")
+    st.error("Failed to connect WebSocket after retries.")
+    return None
 
 # Refresh Firebase token
 def refresh_token():
@@ -99,7 +108,7 @@ def refresh_token():
 # Main app
 st.title("Real-Time Chat App")
 
-# Add CSS for better UI
+# Add CSS
 st.markdown("""
 <style>
     .stTextInput > div > input { padding: 10px; margin: 5px; width: 300px; }
@@ -158,7 +167,7 @@ else:
         st.session_state.messages = []
         st.rerun()
 
-    # Refresh token if expired
+    # Refresh token
     if st.session_state.user and st.session_state.token:
         if not refresh_token():
             st.error("Session expired. Please sign in again.")
@@ -169,7 +178,7 @@ else:
             st.session_state.ws_connected = False
             st.rerun()
 
-    # Check and reconnect WebSocket if closed
+    # Reconnect WebSocket if closed
     if st.session_state.user and st.session_state.token and (not st.session_state.ws or not st.session_state.ws_connected):
         try:
             if st.session_state.ws:
