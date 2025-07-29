@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, emit
 import pyrebase
 import json
 import requests
+from datetime import datetime
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "secret!"
@@ -77,7 +78,15 @@ def handle_message(data):
                 "http://localhost:8000/send_message",
                 json={"token": session["token"], "message": message}
             )
-            if response.status_code != 200:
+            if response.status_code == 200:
+                # Emit message to all Socket.IO clients
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                socketio.emit("message", {
+                    "user_id": session["user"],
+                    "message": message,
+                    "timestamp": timestamp
+                })
+            else:
                 emit("error", {"message": f"Failed to send message: {response.text}"})
         except Exception as e:
             emit("error", {"message": f"Failed to send message: {str(e)}"})
