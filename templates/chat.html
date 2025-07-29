@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-Time Chat App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 600px; margin: auto; }
+        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+        .message { background-color: #f0f2f6; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        input { padding: 10px; margin: 5px; width: 100%; }
+        button { background-color: #4CAF50; color: white; padding: 10px; margin: 5px; width: 100%; }
+        button:hover { background-color: #45a049; }
+        .error { color: red; }
+        .status { color: green; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome, {{ user }}</h2>
+        <a href="/logout"><button>Sign Out</button></a>
+        <div id="status" class="status"></div>
+        <div id="error" class="error"></div>
+        <div id="messages"></div>
+        <input type="text" id="message" placeholder="Your message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+    <script>
+        const socket = io();
+        socket.on("connect", () => {
+            socket.emit("refresh_token");
+        });
+        socket.on("message", (data) => {
+            const messages = document.getElementById("messages");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "message";
+            msgDiv.textContent = `[${data.timestamp}] ${data.user_id}: ${data.message}`;
+            messages.appendChild(msgDiv);
+            messages.scrollTop = messages.scrollHeight;
+        });
+        socket.on("status", (data) => {
+            document.getElementById("status").textContent = data.message;
+        });
+        socket.on("error", (data) => {
+            document.getElementById("error").textContent = data.message;
+        });
+        function sendMessage() {
+            const message = document.getElementById("message").value;
+            if (message) {
+                socket.emit("message", { message: message });
+                document.getElementById("message").value = "";
+            }
+        }
+        // Refresh token every 50 minutes
+        setInterval(() => socket.emit("refresh_token"), 50 * 60 * 1000);
+    </script>
+</body>
+</html>

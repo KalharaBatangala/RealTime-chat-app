@@ -10,12 +10,12 @@ socketio = SocketIO(app)
 
 # Firebase configuration
 firebase_config = {
-    "apiKey": "AIzaSyDcSWTrvcHQ6s6XQSC99qM848N96jX3CdQ",
-    "authDomain": "chat-app-a765a.firebaseapp.com",
-    "projectId": "chat-app-a765a",
-    "storageBucket": "chat-app-a765a.firebasestorage.app",
-    "messagingSenderId": "962580258120",
-    "appId": "1:962580258120:web:3fc77bbf9efc3b307b677d",
+    "apiKey": "AIzaSyDhoK-_lni0M0xsrcpKKdIYQL77VcJdgcA",
+    "authDomain": "chat-app-ef643.firebaseapp.com",
+    "projectId": "chat-app-ef643",
+    "storageBucket": "chat-app-ef643.firebasestorage.app",
+    "messagingSenderId": "779134951347",
+    "appId": "1:779134951347:web:600be4978ca10a4091b5c6",
     "databaseURL": ""
 }
 
@@ -33,7 +33,7 @@ def index():
 def login():
     email = request.form["email"]
     password = request.form["password"]
-    tryjsce
+    try:
         user = auth.sign_in_with_email_and_password(email, password)
         session["user"] = user["email"]
         session["token"] = user["idToken"]
