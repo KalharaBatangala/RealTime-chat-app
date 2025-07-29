@@ -1,0 +1,87 @@
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcSWTrvcHQ6s6XQSC99qM848N96jX3CdQ",
+            authDomain: "chat-app-a765a.firebaseapp.com",
+            projectId: "chat-app-a765a",
+            storageBucket: "chat-app-a765a.firebasestorage.app",
+            messagingSenderId: "962580258120",
+            appId: "1:962580258120:web:3fc77bbf9efc3b307b677d"
+        };
+        firebase.initializeApp(firebaseConfig);
+        function signUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            console.log('Attempting signup with:', email);
+            firebase.auth().createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    console.log('Signup successful:', userCredential.user.email);
+                    alert('Signup successful!');
+                })
+                .catch((error) => {
+                    console.error('Signup error:', error.code, error.message);
+                    alert('Signup failed: ' + error.message);
+                });
+        }
+    </script>
+</head>
+<body>
+    <form>
+        <input type="email" id="email" placeholder="Email"><br>
+        <input type="password" id="password" placeholder="Password"><br>
+        <button type="button" onclick="signUp()">Sign Up</button>
+    </form>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Signup Test</title>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcSWTrvcHQ6s6XQSC99qM848N96jX3CdQ",
+            authDomain: "chat-app-a765a.firebaseapp.com",
+            projectId: "chat-app-a765a",
+            storageBucket: "chat-app-a765a.firebasestorage.app",
+            messagingSenderId: "962580258120",
+            appId: "1:962580258120:web:3fc77bbf9efc3b307b677d"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Signup function
+        window.signUp = function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            console.log('Attempting signup with:', email);
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    console.log('Signup successful:', userCredential.user.email);
+                    alert('Signup successful: ' + userCredential.user.email);
+                })
+                .catch((error) => {
+                    console.error('Signup error:', error.code, error.message);
+                    alert('Signup failed: ' + error.message);
+                });
+        };
+    </script>
+</head>
+<body>
+    <form>
+        <input type="email" id="email" placeholder="Email" autocomplete="email"><br>
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password"><br>
+        <button type="button" onclick="signUp()">Sign Up</button>
+    </form>
+</body>
+</html>

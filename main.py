@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
@@ -8,11 +8,10 @@ import asyncio
 # Initialize FastAPI
 app = FastAPI()
 
-#http://localhost:8501
-# Enable CORS for Streamlit frontend (running on different port)
+# Enable CORS for Streamlit frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8501"],  # Streamlit default port
+    allow_origins=["http://localhost:8501"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,27 +33,40 @@ async def root():
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     connected_clients.append(websocket)
+    print(f"WebSocket connected: {len(connected_clients)} clients")  # Debug log
     try:
         while True:
             data = await websocket.receive_json()
-            # Verify Firebase token
+            print(f"Received data: {data}")  # Debug log
+            if data.get("ping") == "keep-alive":
+                continue  # Ignore ping messages
             try:
                 decoded_token = auth.verify_id_token(data.get("token"))
                 user_id = decoded_token["uid"]
                 message = data.get("message")
                 # Save message to Firestore
-                db.collection("messages").add({
+                doc_ref = db.collection("messages").add({
                     "user_id": user_id,
                     "message": message,
                     "timestamp": firestore.SERVER_TIMESTAMP
                 })
+                doc = db.collection("messages").document(doc_ref[1].id).get()
+                timestamp = doc.to_dict().get("timestamp").strftime("%Y-%m-%d %H:%M:%S")
+                print(f"Sending message: {user_id}: {message} at {timestamp}")  # Debug log
                 # Broadcast message to all clients
                 for client in connected_clients:
-                    await client.send_json({
-                        "user_id": user_id,
-                        "message": message
-                    })
+                    try:
+                        await client.send_json({
+                            "user_id": user_id,
+                            "message": message,
+                            "timestamp": timestamp
+                        })
+                    except Exception as e:
+                        print(f"Error sending to client: {str(e)}")  # Debug log
             except Exception as e:
-                await websocket.send_json({"error": "Invalid token"})
+                error_msg = f"Invalid token: {str(e)}"
+                print(error_msg)  # Debug log
+                await websocket.send_json({"error": error_msg})
     except WebSocketDisconnect:
         connected_clients.remove(websocket)
+        print(f"WebSocket disconnected: {len(connected_clients)} clients")  # Debug log
