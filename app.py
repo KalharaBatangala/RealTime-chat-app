@@ -4,20 +4,25 @@ import pyrebase
 import json
 import requests
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env
+load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "secret!"
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "secret!")  # Fallback to 'secret!' if not set
 socketio = SocketIO(app)
 
-# Firebase configuration
+# Firebase configuration from .env
 firebase_config = {
-    "apiKey": "AIzaSyDhoK-_lni0M0xsrcpKKdIYQL77VcJdgcA",
-    "authDomain": "chat-app-ef643.firebaseapp.com",
-    "projectId": "chat-app-ef643",
-    "storageBucket": "chat-app-ef643.firebasestorage.app",
-    "messagingSenderId": "779134951347",
-    "appId": "1:779134951347:web:600be4978ca10a4091b5c6",
-    "databaseURL": ""
+    "apiKey": os.getenv("FIREBASE_API_KEY"),
+    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+    "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+    "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": os.getenv("FIREBASE_APP_ID"),
+    "databaseURL": os.getenv("FIREBASE_DATABASE_URL")
 }
 
 # Initialize Firebase
