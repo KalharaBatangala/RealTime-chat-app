@@ -1,21 +1,22 @@
-import streamlit as st
+from flask import Flask, render_template, request, redirect, url_for, session
+from flask_socketio import SocketIO, emit
 import pyrebase
 import json
-import websocket
-import threading
-import time
+import requests
+from datetime import datetime
 
-# Streamlit page config
-st.set_page_config(page_title="Real-Time Chat App", layout="wide")
+app = Flask(__name__)
+app.config["SECRET_KEY"] = "secret!"
+socketio = SocketIO(app)
 
 # Firebase configuration
 firebase_config = {
-    "apiKey": "AIzaSyDcSWTrvcHQ6s6XQSC99qM848N96jX3CdQ",
-    "authDomain": "chat-app-a765a.firebaseapp.com",
-    "projectId": "chat-app-a765a",
-    "storageBucket": "chat-app-a765a.firebasestorage.app",
-    "messagingSenderId": "962580258120",
-    "appId": "1:962580258120:web:3fc77bbf9efc3b307b677d",
+    "apiKey": "AIzaSyDhoK-_lni0M0xsrcpKKdIYQL77VcJdgcA",
+    "authDomain": "chat-app-ef643.firebaseapp.com",
+    "projectId": "chat-app-ef643",
+    "storageBucket": "chat-app-ef643.firebasestorage.app",
+    "messagingSenderId": "779134951347",
+    "appId": "1:779134951347:web:600be4978ca10a4091b5c6",
     "databaseURL": ""
 }
 
@@ -23,185 +24,86 @@ firebase_config = {
 firebase = pyrebase.initialize_app(firebase_config)
 auth = firebase.auth()
 
-# Session state
-if "user" not in st.session_state:
-    st.session_state.user = None
-    st.session_state.token = None
-    st.session_state.refresh_token = None
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "ws" not in st.session_state:
-    st.session_state.ws = None
-if "ws_connected" not in st.session_state:
-    st.session_state.ws_connected = False
+@app.route("/")
+def index():
+    if "user" in session:
+        return render_template("chat.html", user=session["user"])
+    return render_template("login.html")
 
-# WebSocket connection
-def connect_websocket(token):
-    def on_message(ws, message):
+@app.route("/login", methods=["POST"])
+def login():
+    email = request.form["email"]
+    password = request.form["password"]
+    try:
+        user = auth.sign_in_with_email_and_password(email, password)
+        session["user"] = user["email"]
+        session["token"] = user["idToken"]
+        session["refresh_token"] = user["refreshToken"]
+        return redirect(url_for("index"))
+    except Exception as e:
+        return render_template("login.html", error=f"Signin failed: {str(e)}")
+
+@app.route("/signup", methods=["POST"])
+def signup():
+    email = request.form["email"]
+    password = request.form["password"]
+    try:
+        user = auth.create_user_with_email_and_password(email, password)
+        session["user"] = user["email"]
+        session["token"] = user["idToken"]
+        session["refresh_token"] = user["refreshToken"]
+        return redirect(url_for("index"))
+    except Exception as e:
+        return render_template("login.html", error=f"Signup failed: {str(e)}")
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    session.pop("token", None)
+    session.pop("refresh_token", None)
+    return redirect(url_for("index"))
+
+@socketio.on("connect")
+def handle_connect():
+    if "token" in session:
+        emit("status", {"message": "WebSocket connected"})
+
+@socketio.on("message")
+def handle_message(data):
+    message = data.get("message")
+    if message and "token" in session:
         try:
-            data = json.loads(message)
-            if "error" not in data:
-                sender = st.session_state.user if data['user_id'] == auth.get_account_info(st.session_state.token)['users'][0]['localId'] else data['user_id']
-                timestamp = data.get('timestamp', time.strftime("%Y-%m-%d %H:%M:%S"))
-                st.session_state.messages.append(f"[{timestamp}] {sender}: {data['message']}")
-                st.rerun()
-            else:
-                st.error(f"WebSocket message error: {data['error']}")
-        except Exception as e:
-            st.error(f"Error processing message: {str(e)}")
-
-    def on_error(ws, error):
-        st.error(f"WebSocket error: {str(error)}")
-        st.session_state.ws_connected = False
-
-    def on_close(ws, code, reason):
-        st.warning(f"WebSocket closed: {reason or 'No reason provided'} (Code: {code})")
-        st.session_state.ws_connected = False
-
-    def on_open(ws):
-        ws.send(json.dumps({"token": token, "message": ""}))
-        st.session_state.ws_connected = True
-        st.success("WebSocket connected")
-        # Keep-alive ping
-        def keep_alive():
-            while st.session_state.ws_connected:
-                try:
-                    ws.send(json.dumps({"ping": "keep-alive"}))
-                    time.sleep(10)  # Reduced to 10 seconds
-                except:
-                    st.session_state.ws_connected = False
-                    break
-        threading.Thread(target=keep_alive, daemon=True).start()
-
-    for attempt in range(3):  # Retry up to 3 times
-        try:
-            ws = websocket.WebSocketApp(
-                "ws://localhost:8000/ws",
-                on_message=on_message,
-                on_error=on_error,
-                on_close=on_close,
-                on_open=on_open
+            # Send message to FastAPI backend
+            response = requests.post(
+                "http://localhost:8000/send_message",
+                json={"token": session["token"], "message": message}
             )
-            threading.Thread(target=ws.run_forever, daemon=True, kwargs={"ping_interval": 10, "ping_timeout": 5}).start()
-            time.sleep(1)  # Wait for connection
-            if st.session_state.ws_connected:
-                return ws
-            st.warning(f"WebSocket connection attempt {attempt + 1} failed. Retrying...")
-        except Exception as e:
-            st.error(f"WebSocket connection error: {str(e)}")
-    st.error("Failed to connect WebSocket after retries.")
-    return None
-
-# Refresh Firebase token
-def refresh_token():
-    if st.session_state.refresh_token:
-        try:
-            user = auth.refresh(st.session_state.refresh_token)
-            st.session_state.token = user['idToken']
-            st.session_state.refresh_token = user['refreshToken']
-            return True
-        except Exception as e:
-            st.error(f"Token refresh failed: {str(e)}")
-            return False
-    return False
-
-# Main app
-st.title("Real-Time Chat App")
-
-# Add CSS
-st.markdown("""
-<style>
-    .stTextInput > div > input { padding: 10px; margin: 5px; width: 300px; }
-    .stButton > button { background-color: #4CAF50; color: white; padding: 10px; margin: 5px; }
-    .stButton > button:hover { background-color: #45a049; }
-    .chat-message { background-color: #f0f2f6; padding: 10px; margin: 5px 0; border-radius: 5px; }
-</style>
-""", unsafe_allow_html=True)
-
-if not st.session_state.user:
-    st.subheader("Sign In / Sign Up")
-    
-    email = st.text_input("Email")
-    password = st.text_input("Password", type="password")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Sign In"):
-            try:
-                user = auth.sign_in_with_email_and_password(email, password)
-                st.session_state.user = user["email"]
-                st.session_state.token = user["idToken"]
-                st.session_state.refresh_token = user["refreshToken"]
-                st.session_state.ws = connect_websocket(st.session_state.token)
-                st.success(f"Signed in as {user['email']}")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Signin failed: {str(e)}")
-    
-    with col2:
-        if st.button("Sign Up"):
-            try:
-                user = auth.create_user_with_email_and_password(email, password)
-                st.session_state.user = user["email"]
-                st.session_state.token = user["idToken"]
-                st.session_state.refresh_token = user["refreshToken"]
-                st.session_state.ws = connect_websocket(st.session_state.token)
-                st.success(f"Account created for {user['email']}")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Signup failed: {str(e)}")
-
-else:
-    st.subheader(f"Welcome, {st.session_state.user}")
-    if st.button("Sign Out"):
-        if st.session_state.ws:
-            try:
-                st.session_state.ws.close()
-            except:
-                pass
-        st.session_state.user = None
-        st.session_state.token = None
-        st.session_state.refresh_token = None
-        st.session_state.ws = None
-        st.session_state.ws_connected = False
-        st.session_state.messages = []
-        st.rerun()
-
-    # Refresh token
-    if st.session_state.user and st.session_state.token:
-        if not refresh_token():
-            st.error("Session expired. Please sign in again.")
-            st.session_state.user = None
-            st.session_state.token = None
-            st.session_state.refresh_token = None
-            st.session_state.ws = None
-            st.session_state.ws_connected = False
-            st.rerun()
-
-    # Reconnect WebSocket if closed
-    if st.session_state.user and st.session_state.token and (not st.session_state.ws or not st.session_state.ws_connected):
-        try:
-            if st.session_state.ws:
-                st.session_state.ws.close()
-        except:
-            pass
-        st.session_state.ws = connect_websocket(st.session_state.token)
-
-    # Chat interface
-    message = st.text_input("Your message")
-    if st.button("Send"):
-        if message:
-            if st.session_state.ws and st.session_state.ws_connected:
-                try:
-                    st.session_state.ws.send(json.dumps({"token": st.session_state.token, "message": message}))
-                except Exception as e:
-                    st.error(f"Failed to send message: {str(e)}")
-                    st.session_state.ws_connected = False
-                    st.session_state.ws = connect_websocket(st.session_state.token)
+            if response.status_code == 200:
+                # Emit message to all Socket.IO clients
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                socketio.emit("message", {
+                    "user_id": session["user"],
+                    "message": message,
+                    "timestamp": timestamp
+                })
             else:
-                st.error("WebSocket not connected. Trying to reconnect...")
-                st.session_state.ws = connect_websocket(st.session_state.token)
+                emit("error", {"message": f"Failed to send message: {response.text}"})
+        except Exception as e:
+            emit("error", {"message": f"Failed to send message: {str(e)}"})
 
-    # Display messages
-    for msg in st.session_state.messages:
-        st.markdown(f'<div class="chat-message">{msg}</div>', unsafe_allow_html=True)
+@socketio.on("refresh_token")
+def refresh_token():
+    if "refresh_token" in session:
+        try:
+            user = auth.refresh(session["refresh_token"])
+            session["token"] = user["idToken"]
+            session["refresh_token"] = user["refreshToken"]
+            emit("status", {"message": "Token refreshed"})
+        except Exception as e:
+            emit("error", {"message": f"Token refresh failed: {str(e)}"})
+            session.pop("user", None)
+            session.pop("token", None)
+            session.pop("refresh_token", None)
+
+if __name__ == "__main__":
+    socketio.run(app, debug=True, port=5000)
