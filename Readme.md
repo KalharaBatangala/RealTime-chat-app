@@ -2,6 +2,12 @@
 
 A web-based chat application with user authentication and real-time group messaging, built to showcase full-stack development and DevOps skills. This project demonstrates my ability to design, troubleshoot, and deploy a modern web app while overcoming real-world challenges like WebSocket instability and framework limitations.
 
+![Flask](https://img.shields.io/badge/Flask-000000?style=for-the-badge&logo=flask&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-010101?style=for-the-badge&logo=socketdotio&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+
+
 ## Features
 
 - **User Authentication**: Secure sign-up and login using Firebase Authentication (Email/Password).
